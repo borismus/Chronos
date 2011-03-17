@@ -1,0 +1,16 @@
+Chronos: An extension to track how much active time is spent browsing various sites.
+
+V1:
+- What sites do I visit most?
+- How much time do I spend browsing in total?
+- How much time do I spend browsing domain?
+- The above questions answered in aggregate or per day
+- Persisted with localStorage
+
+V2:
+- Set daily time limits for domains
+- Set threshold for too much activity (forced breaks)
+
+V3:
+- Tag domains into groups
+- Set time limits on groups

@@ -1,0 +1,18 @@
+{
+  "name": "Chronos",
+  "version": "0.1",
+  "description": "Monitors your usage of Chrome and displays it in a graph.",
+  "permissions": [
+    "tabs"
+  ],
+  "background_page": "background.html", 
+  "browser_action": {
+      "default_icon": "icon.png",
+      "default_popup": "popup.html",
+			"default_title": "Open Chronos"
+    },
+  "content_scripts": [{
+    "matches": ["<all_urls>"],
+    "js": ["jquery.js", "inject.js"]
+  }]
+}

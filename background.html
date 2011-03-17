@@ -1,0 +1,196 @@
+<!doctype html>
+<!--
+ * Copyright (c) 2011 The Chromium Authors. All rights reserved.  Use of this
+ * source code is governed by a BSD-style license that can be found in the
+ * LICENSE file.
+-->
+<head>
+<title>Chronos Background</title>
+<meta charset="utf-8">
+<script src="jquery.js"></script>
+<script>
+// Wait 10 seconds before we decide the client is idle
+var TIMEOUT_LENGTH = 10;
+// Use a slice length of 2 seconds (ie. collect data every N seconds)
+var SLICE_LENGTH = 2;
+// Inactive key
+var INACTIVE_DOMAIN = 'inactive';
+// Chrome key
+var SPECIAL_DOMAIN = 'special';
+// Time multiplier
+var TM = SLICE_LENGTH * 1000;
+
+// What's the currently selected tab
+var currTab = null;
+// When was the last activity timestamp (in ms)
+var lastActive = 0;
+// Data structure to keep track of time tracking data
+// timeData[day][domain] = activityAmount
+var timeData = {};
+
+function collectData() {
+  // Get the current day
+  var now = new Date();
+  var ms = now.valueOf();
+  // Bucket the current time according to the slice length
+  // Note: need to convert the key to the current timezone
+  var key = dayFromDate(now);
+  // Ensure there's an entry for this timeslice
+  if (! timeData[key]) {
+    timeData[key] = {};
+  }
+  var data = timeData[key];
+  var domain = null;
+  // Check if there has been recent activity
+  var isRecentlyActive = (ms - lastActive) < TIMEOUT_LENGTH * 1000;
+  if (isRecentlyActive) {
+    chrome.browserAction.setIcon({path: 'icon.png'});
+  } else {
+    chrome.browserAction.setIcon({path: 'icon-inactive.png'});
+  }
+  // If there's a current tab (there should be) and recent activity,
+  // Log this activity
+  if (currTab && isRecentlyActive) {
+    // Get the current URL
+    var url = currTab.url;
+    // Get the domain from the current URL
+    domain = parseDomain(url);
+    // Ensure we're dealing with a valid domain
+    if (! domain) {
+      domain = SPECIAL_DOMAIN;
+    }
+  } else {
+    domain = INACTIVE_DOMAIN;
+  }
+  // console.log('Reporting activity for ' + domain);
+  // Add or increment the domain's entry in timeData object.
+  if (! data[domain]) {
+    data[domain] = TM;
+  } else {
+    data[domain] += TM;
+  }
+}
+
+function saveState() {
+  // console.log('saving state');
+  localStorage.setItem('data', JSON.stringify(timeData));
+}
+
+function loadState() {
+  // console.log('loading state');
+  var dataString = localStorage.getItem('data');
+  timeData = (dataString !== null ? JSON.parse(dataString) : {});
+}
+
+$(function() {
+  // Load the state from localStorage
+  loadState();
+  // Setup an interval timer for data collection
+  var timer = setInterval(collectData, SLICE_LENGTH * 1000);
+
+  // React to certain chrome events that update the currently active tab
+  var events = [
+  	chrome.tabs.onSelectionChanged, 
+    chrome.tabs.onUpdated, 
+    chrome.windows.onFocusChanged
+  ];
+  $.each(events, function(index, item) {
+    item.addListener(function() {
+      // console.log('An important chrome tab focus related event fired');
+      chrome.windows.getCurrent(function(win) {
+        chrome.tabs.getSelected(win.id, function(tab) {
+          currTab = tab;
+          console.log('internal chrome event fired');
+          lastActive = (new Date()).valueOf();
+        });
+      })
+    });
+  });
+
+  var reportCount = 0;
+  // Listen to activity reports
+  chrome.extension.onRequest.addListener(
+    function(request, sender, sendResponse) {
+      if (request.activity == true) {
+        // Update when the user was last active
+        console.log('user event fired');
+      	lastActive = (new Date()).valueOf();
+        // Send back an empty response
+        sendResponse({});
+        // Every N reports, save state
+        reportCount += 1;
+        if (reportCount % 10== 0) {
+          saveState();
+        }
+      }
+    });
+});
+
+function getDailyData(day) {
+  // Return two arrays [domains, times]
+  if (! timeData[day]) {
+    return false;
+  }
+  var flat = flattenObject(timeData[day]);
+	// Sort flattened data by value
+  flat.sort(function(a, b) {return b[1] - a[1]});
+  return zip(flat);
+};
+
+function getAllData() {
+  var output = {};
+  $.each(timeData, function(day, domains) {
+    $.each(domains, function(domainName, time) {
+      if (! output[domainName]) {
+        output[domainName] = time;
+      } else {
+        output[domainName] += time;
+      }
+    });
+  });
+  var flat = flattenObject(output);
+	// Sort flattened data by value
+  flat.sort(function(a, b) {return b[1] - a[1]});
+  return zip(flat);
+}
+
+/****** Utility methods *****************/
+
+function flattenObject(obj) {
+  // Given an object {k1:v1, k2:v2, ...}, returns [[k1,v1],[k2,v2],...]
+  var output = [];
+  for (var key in obj) {
+    if (obj.hasOwnProperty(key)) {
+      output.push([key, obj[key]]);
+    }
+  }
+  return output;
+}
+
+function zip(arr) {
+  // Given an array [[k1,v1],[k2,v2],...], returns [[k1,k2,...], [v1,v2,...]]
+  var keys = [];
+  var values = [];
+	for (var i = 0; i < arr.length; i++) {
+    keys[i] = arr[i][0];
+    values[i] = arr[i][1];
+  }
+  return [keys, values];
+}
+
+var URL_PATTERN = new RegExp("(http|ftp|https)://(.*?)/.*$");
+function parseDomain(url) {
+	var match = url.match(URL_PATTERN);
+  if (! match || match.length != 3) {
+    // This shouldn't happen. If it does, fix it
+    console.log('Error parsing URL ' + url);
+    return null;
+  }
+  return match[2];
+}
+
+function dayFromDate(date) {
+	return Math.floor((date.valueOf()/60000 - date.getTimezoneOffset()) / 1440);
+}
+</script>
+</head>

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<!--
+ * Copyright (c) 2011 The Chromium Authors. All rights reserved.  Use of this
+ * source code is governed by a BSD-style license that can be found in the
+ * LICENSE file.
+-->
+<head>
+  <title>Chronos Popup</title>
+  <meta charset="utf-8">
+	<link rel="stylesheet" href="popup.css">
+	<link rel="stylesheet" href="jquery-ui-1.8.10.custom.css">
+  <script src="jquery.js"></script>
+  <script src="jquery-ui-1.8.10.custom.min.js"></script>
+  <script src="popup.js"></script>
+</head>
+<body>
+<ul id="picker" class="clearfix">
+  <li id="all">all</li>
+  <li id="today" class="selected">today</li>
+  <li id="date">date <input id="datepicker" type="text"></li>
+</ul>
+
+<div id="summary">
+  Browsing time: <span id="active_time">6 hours</span><br/>
+  Idle ratio: <span id="idle_ratio">44</span>%
+</div>
+
+<ul id="chart">
+  <li>No data yet.</li>
+</ul>
+</body>
